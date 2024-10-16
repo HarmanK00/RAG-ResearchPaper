@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Analysis Assistant</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <style>
+        .creator-note {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .loading-message {
+            color: #007bff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="creator-note">
+            Created by Harman Kaur
+        </div>
+        <h1 class="my-4">Financial Analysis Assistant</h1>
+        <form id="queryForm" action="/generate-response" method="post">
+            <div class="form-group">
+                <label for="company">Company Ticker (e.g., AAPL, MSFT)</label>
+                <input type="text" id="company" name="company" class="form-control" placeholder="Enter company ticker" required>
+            </div>
+            <div class="form-group">
+                <label for="query">Your Question</label>
+                <textarea id="query" name="query" class="form-control" rows="3" placeholder="Enter your financial question..." required></textarea>
+            </div>
+            <button type="submit" id="submitButton" class="btn btn-primary">Submit</button>
+        </form>
+        <div id="response" class="mt-4"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script>
+        // Submit the form via AJAX to prevent page reload and show the response in the UI
+        $('#queryForm').on('submit', function(event) {
+            event.preventDefault();
+            let company = $('#company').val();
+            let query = $('#query').val();
+
+            // Disable the submit button and show a loading message
+            $('#submitButton').attr('disabled', true);
+            $('#response').html('<div class="loading-message">Generating response, please wait...</div>');
+
+            $.ajax({
+                url: '/generate-response',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ company: company, query: query }),
+                success: function(response) {
+                    $('#response').html('<div class="alert alert-success">' + response.response + '</div>');
+                },
+                error: function(xhr, status, error) {
+                    $('#response').html('<div class="alert alert-danger">An error occurred while generating the response. Please try again.</div>');
+                },
+                complete: function() {
+                    // Re-enable the submit button once the request is complete
+                    $('#submitButton').attr('disabled', false);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
