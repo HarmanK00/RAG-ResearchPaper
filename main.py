@@ -95,16 +95,20 @@ def generate_response():
     # Generate a response from GPT-4
     openai.api_key = OPENAI_API_KEY
     try:
-        response = openai.Completion.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4",
-            prompt=combined_data,
+            messages=[
+                {"role": "system", "content": "You are a financial analyst assistant."},
+                {"role": "user", "content": combined_data}
+            ],
             max_tokens=1000,
             temperature=0.9
         )
-        return jsonify({'response': response.choices[0].text.strip()})
+        return jsonify({'response': response['choices'][0]['message']['content']})
     except Exception as e:
         return jsonify({'response': f"An error occurred while generating the response: {str(e)}"})
 
 # Running the Flask server
 if __name__ == '__main__':
     app.run(debug=True)
+
