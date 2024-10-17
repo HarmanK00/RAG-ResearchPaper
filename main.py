@@ -110,18 +110,21 @@ def generate_response():
             f"Please provide a detailed summary of {company_name}'s financial health, recent performance, and future market outlook based on the above data."
         )
 
-# Generate a response from GPT-4
-openai.api_key = OPENAI_API_KEY
-response = openai.ChatCompletion.create(
-    model="gpt-4",
-    messages=[
-        {"role": "system", "content": "You are a financial analyst assistant."},
-        {"role": "user", "content": combined_data}
-    ],
-    max_tokens=1000,
-    temperature=0.9
-)
-return jsonify({'response': response['choices'][0]['message']['content'].strip()})
+	# Generate a response from GPT-4
+        openai.api_key = OPENAI_API_KEY
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a financial analyst assistant."},
+                    {"role": "user", "content": combined_data}
+                ],
+                max_tokens=1000,
+                temperature=0.9
+            )
+            return jsonify({'response': response['choices'][0]['message']['content']})
+        except Exception as e:
+            return jsonify({'response': f"Error generating response from OpenAI: {str(e)}"})
 
     except Exception as e:
         # Catch all exceptions and provide detailed error feedback
@@ -131,4 +134,3 @@ return jsonify({'response': response['choices'][0]['message']['content'].strip()
 # Running the Flask server
 if __name__ == '__main__':
     app.run(debug=True)
-
