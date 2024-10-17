@@ -110,15 +110,18 @@ def generate_response():
             f"Please provide a detailed summary of {company_name}'s financial health, recent performance, and future market outlook based on the above data."
         )
 
-        # Generate a response from GPT-4
-        openai.api_key = OPENAI_API_KEY
-        response = openai.Completion.create(
-            model="text-davinci-003",
-            prompt=combined_data,
-            max_tokens=1000,
-            temperature=0.9
-        )
-        return jsonify({'response': response['choices'][0]['text'].strip()})
+# Generate a response from GPT-4
+openai.api_key = OPENAI_API_KEY
+response = openai.ChatCompletion.create(
+    model="gpt-4",
+    messages=[
+        {"role": "system", "content": "You are a financial analyst assistant."},
+        {"role": "user", "content": combined_data}
+    ],
+    max_tokens=1000,
+    temperature=0.9
+)
+return jsonify({'response': response['choices'][0]['message']['content'].strip()})
 
     except Exception as e:
         # Catch all exceptions and provide detailed error feedback
