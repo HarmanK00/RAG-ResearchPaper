@@ -3,8 +3,6 @@ import yfinance as yf
 import requests
 from flask import Flask, request, jsonify, render_template
 import os
-import re
-from datetime import datetime
 
 # Flask app initialization
 app = Flask(__name__)
@@ -17,13 +15,14 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 def fetch_fundamentals_from_yahoo_finance(ticker):
     try:
         stock = yf.Ticker(ticker)
-        data = stock.history(period="max")  # Fetching all available data to get historical context
-        if data.empty:
+        stock_info = stock.info
+
+        if not stock_info:
             return {"error": "No data found for the given ticker"}
 
-        pe_ratio = stock.info.get('trailingPE', "N/A")
-        eps = stock.info.get('trailingEps', "N/A")
-        market_cap = stock.info.get('marketCap', "N/A")
+        pe_ratio = stock_info.get('trailingPE', "N/A")
+        eps = stock_info.get('trailingEps', "N/A")
+        market_cap = stock_info.get('marketCap', "N/A")
 
         return {
             "ticker": ticker,
@@ -34,35 +33,35 @@ def fetch_fundamentals_from_yahoo_finance(ticker):
     except Exception as e:
         return {"error": str(e)}
 
-# Function to compare current data with previous year
-def compare_with_previous_year(data, year):
+# Function to fetch historical trading data from Yahoo Finance
+def fetch_historical_data_from_yahoo_finance(ticker):
     try:
-        historical_data = data.get('historical_data')
-        if historical_data is None:
-            return "No historical data available for comparison."
-
-        # Find data from the specified year
-        year_str = str(year)
-        historical_data_year = historical_data[historical_data.index.year == int(year)]
-        
-        if historical_data_year.empty:
-            return f"No data available for the year {year}."
-
-        avg_price_last_year = historical_data_year['Close'].mean()
-        current_price = data['closing_price']
-
-        comparison = f"Comparing Tesla's performance in {year} to its current state:\n"
-        comparison += f"Average Closing Price in {year}: ${avg_price_last_year:.2f}\n"
-        comparison += f"Current Closing Price: ${current_price:.2f}\n"
-        
-        if current_price > avg_price_last_year:
-            comparison += "Tesla is performing better compared to the same period in the previous year."
-        else:
-            comparison += "Tesla is performing worse compared to the same period in the previous year."
-
-        return comparison
+        stock = yf.Ticker(ticker)
+        # Fetch data for the last 20 years
+        data = stock.history(period="max")
+        if data.empty:
+            return {"error": "No historical data found for the given ticker"}
+        return data
     except Exception as e:
-        return f"Error in comparing data: {str(e)}"
+        return {"error": str(e)}
+
+# Function to fetch real-time trading data from Polygon.io
+def fetch_real_time_data_from_polygon(ticker):
+    polygon_url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/2023-01-09/2023-01-09?apiKey={POLYGON_API_KEY}"
+    try:
+        polygon_response = requests.get(polygon_url)
+        if polygon_response.status_code == 200 and polygon_response.json().get("results"):
+            polygon_data = polygon_response.json()
+            closing_price = polygon_data["results"][0].get("c", "N/A")
+            volume = polygon_data["results"][0].get("v", "N/A")
+            return {
+                "closing_price": closing_price,
+                "volume": volume
+            }
+        else:
+            return {"error": "No data found for the given ticker on Polygon.io"}
+    except Exception as e:
+        return {"error": str(e)}
 
 # Route to render the HTML form for the UI
 @app.route('/')
@@ -83,19 +82,15 @@ def generate_response():
             user_query = request.form.get('query', '')
             company_name = request.form.get('company', 'AAPL')
 
-        # Extract year from the user's query (if any)
-        year_match = re.search(r'\b(20\d{2})\b', user_query)
-        comparison_year = int(year_match.group(1)) if year_match else None
-
         # Fetch company fundamentals from Yahoo Finance
-        yahoo_data = fetch_fundamentals_from_yahoo_finance(company_name, period="20y")
+        yahoo_data = fetch_fundamentals_from_yahoo_finance(company_name)
         if "error" in yahoo_data:
             return jsonify({'response': f"Error fetching data from Yahoo Finance: {yahoo_data['error']}"})
 
-        # If a year is specified, perform comparison
-        comparison_response = ""
-        if comparison_year:
-            comparison_response = compare_with_previous_year(yahoo_data, comparison_year)
+        # Fetch historical trading data from Yahoo Finance
+        historical_data = fetch_historical_data_from_yahoo_finance(company_name)
+        if "error" in historical_data:
+            return jsonify({'response': f"Error fetching historical data from Yahoo Finance: {historical_data['error']}"})
 
         # Fetch real-time trading data from Polygon.io
         polygon_data = fetch_real_time_data_from_polygon(company_name)
@@ -112,18 +107,13 @@ def generate_response():
             f"Latest Closing Price: ${polygon_data['closing_price']}\n"
             f"Trading Volume: {polygon_data['volume']}\n"
             f"User Query: {user_query}\n"
+            f"Please provide a detailed summary of {company_name}'s financial health, recent performance, and future market outlook based on the above data."
         )
-
-        # Add comparison response if available
-        if comparison_response:
-            combined_data += f"\n{comparison_response}\n"
-
-        combined_data += f"\nPlease provide a detailed summary of {company_name}'s financial health, recent performance, and future market outlook based on the above data."
 
         # Generate a response from GPT-4
         openai.api_key = OPENAI_API_KEY
         response = openai.Completion.create(
-            engine="text-davinci-003",
+            model="text-davinci-003",
             prompt=combined_data,
             max_tokens=1000,
             temperature=0.9
@@ -138,3 +128,4 @@ def generate_response():
 # Running the Flask server
 if __name__ == '__main__':
     app.run(debug=True)
+
