@@ -99,28 +99,35 @@ def generate_response():
 
         # Combine financial data from both sources
         combined_data = (
-            f"Yahoo Finance Data for {company_name}:\n"
+            f"Below is the real-time financial data for {company_name}:\n\n"
+            f"Yahoo Finance Data:\n"
             f"Market Cap: {yahoo_data['market_cap']}\n"
             f"P/E Ratio: {yahoo_data['pe_ratio']}\n"
             f"Earnings Per Share (EPS): {yahoo_data['eps']}\n\n"
-            f"Polygon.io Data for {company_name}:\n"
+            f"Historical Data Summary:\n"
+            f"Closing prices and volume data from the last 20 years were fetched.\n\n"
+            f"Polygon.io Data:\n"
             f"Latest Closing Price: ${polygon_data['closing_price']}\n"
-            f"Trading Volume: {polygon_data['volume']}\n"
-            f"User Query: {user_query}\n"
-            f"Please provide a detailed summary of {company_name}'s financial health, recent performance, and future market outlook based on the above data."
+            f"Trading Volume: {polygon_data['volume']}\n\n"
+            f"User Query: {user_query}\n\n"
+            f"Based on the above real-time data, please provide a detailed summary of {company_name}'s financial health, "
+            f"recent performance, and comparison with past performance if applicable. Use only the provided data and do not reference information beyond the scope of the data given."
         )
 
-	# Generate a response from GPT-4
+        # Generate a response from GPT-4
         openai.api_key = OPENAI_API_KEY
         try:
             response = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are a financial analyst assistant."},
+                    {"role": "system", "content": (
+                        "You are a financial analyst assistant that provides real-time financial analysis based solely on the given data. "
+                        "Do not reference your training knowledge or any information from before September 2021. Focus on using only the provided information to generate your response."
+                    )},
                     {"role": "user", "content": combined_data}
                 ],
                 max_tokens=1000,
-                temperature=0.9
+                temperature=0.7
             )
             return jsonify({'response': response['choices'][0]['message']['content']})
         except Exception as e:
