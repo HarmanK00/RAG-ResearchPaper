@@ -14,27 +14,22 @@ POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Function to fetch company fundamentals from Yahoo Finance
-def fetch_fundamentals_from_yahoo_finance(ticker, period="5y"):
+def fetch_fundamentals_from_yahoo_finance(ticker):
     try:
         stock = yf.Ticker(ticker)
-        data = stock.history(period=period)  # Fetch data for the given period (up to 20 years)
-        stock_info = stock.info
-
-        if data.empty or not stock_info:
+        data = stock.history(period="max")  # Fetching all available data to get historical context
+        if data.empty:
             return {"error": "No data found for the given ticker"}
 
-        closing_price = data['Close'].iloc[-1]
-        pe_ratio = stock_info.get('trailingPE', "N/A")
-        eps = stock_info.get('trailingEps', "N/A")
-        market_cap = stock_info.get('marketCap', "N/A")
+        pe_ratio = stock.info.get('trailingPE', "N/A")
+        eps = stock.info.get('trailingEps', "N/A")
+        market_cap = stock.info.get('marketCap', "N/A")
 
         return {
             "ticker": ticker,
-            "closing_price": closing_price,
             "market_cap": market_cap,
             "pe_ratio": pe_ratio,
-            "eps": eps,
-            "historical_data": data
+            "eps": eps
         }
     except Exception as e:
         return {"error": str(e)}
