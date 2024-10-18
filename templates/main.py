@@ -9,7 +9,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return render_template('index.html')  # This will look for a file named "index.html" to display.
+    return render_template('index.html')
 
 # API keys (using environment variables)
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
@@ -85,6 +85,11 @@ def generate_response():
         else:
             user_query = request.form.get('query', '')
             company_name = request.form.get('company', 'AAPL')
+
+        return jsonify({'response': response_text})
+    except Exception as e:
+        # Handle exceptions and return an error message
+        return jsonify({'response': f"An error occurred: {str(e)}"}), 500
 
         # Check if the query asks for historical data
         if any(keyword in user_query.lower() for keyword in ["compare", "year", "past", "historical"]):
