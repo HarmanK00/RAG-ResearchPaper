@@ -11,8 +11,8 @@ app = Flask(__name__)
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Function to fetch company fundamentals from Yahoo Finance
-def fetch_fundamentals_from_yahoo_finance(ticker):
+# Function to fetch all available company metrics from Yahoo Finance
+def fetch_all_fundamentals_from_yahoo_finance(ticker):
     try:
         stock = yf.Ticker(ticker)
         stock_info = stock.info
@@ -20,55 +20,49 @@ def fetch_fundamentals_from_yahoo_finance(ticker):
         if not stock_info:
             return {"error": "No data found for the given ticker"}
 
-        pe_ratio = stock_info.get('trailingPE', "N/A")
-        eps = stock_info.get('trailingEps', "N/A")
-        market_cap = stock_info.get('marketCap', "N/A")
-
-        return {
-            "ticker": ticker,
-            "market_cap": market_cap,
-            "pe_ratio": pe_ratio,
-            "eps": eps
-        }
+        # Return the entire dictionary of metrics
+        return stock_info
     except Exception as e:
         return {"error": str(e)}
 
-# Function to fetch historical trading data from Yahoo Finance
-def fetch_historical_data_from_yahoo_finance(ticker):
+# Function to fetch real-time financial metrics from Polygon.io
+def fetch_financial_data_from_polygon(ticker):
+    polygon_url = f"https://api.polygon.io/vX/reference/financials?ticker={ticker}&limit=1&apiKey={POLYGON_API_KEY}"
+    
     try:
-        stock = yf.Ticker(ticker)
-        # Fetch data for the last 20 years
-        data = stock.history(period="max")
-        if data.empty:
-            return {"error": "No historical data found for the given ticker"}
-        return data
-    except Exception as e:
-        return {"error": str(e)}
-
-# Function to fetch real-time trading data from Polygon.io
-def fetch_real_time_data_from_polygon(ticker):
-    polygon_url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/2023-01-09/2023-01-09?apiKey={POLYGON_API_KEY}"
-    try:
-        polygon_response = requests.get(polygon_url)
-        if polygon_response.status_code == 200 and polygon_response.json().get("results"):
-            polygon_data = polygon_response.json()
-            closing_price = polygon_data["results"][0].get("c", "N/A")
-            volume = polygon_data["results"][0].get("v", "N/A")
-            return {
-                "closing_price": closing_price,
-                "volume": volume
-            }
+        response = requests.get(polygon_url)
+        if response.status_code == 200:
+            polygon_data = response.json()
+            return polygon_data['results'] if 'results' in polygon_data else {"error": "No data found"}
         else:
-            return {"error": "No data found for the given ticker on Polygon.io"}
+            return {"error": f"Error fetching data from Polygon.io: {response.status_code}"}
     except Exception as e:
         return {"error": str(e)}
 
-# Route to render the HTML form for the UI
-@app.route('/')
-def index():
-    return render_template('index.html')
+# Combine the Yahoo Finance and Polygon.io data
+def combine_financial_data(ticker):
+    yahoo_data = fetch_all_fundamentals_from_yahoo_finance(ticker)
+    polygon_data = fetch_financial_data_from_polygon(ticker)
 
-# Flask route to generate a response from ChatGPT
+    # Handle cases where data might be missing
+    if "error" in yahoo_data or "error" in polygon_data:
+        return f"Error in fetching data: {yahoo_data.get('error', '')}, {polygon_data.get('error', '')}"
+
+    combined_data = f"Below is the real-time financial data for {ticker}:\n\n"
+    
+    # Yahoo Finance data
+    combined_data += "Yahoo Finance Data:\n"
+    for key, value in yahoo_data.items():
+        combined_data += f"{key}: {value}\n"
+    
+    # Polygon.io data
+    combined_data += "\nPolygon.io Data:\n"
+    for key, value in polygon_data[0].items():  # Assuming we are taking the first result
+        combined_data += f"{key}: {value}\n"
+
+    return combined_data
+
+# Flask route to generate a response from GPT-4
 @app.route('/generate-response', methods=['POST'])
 def generate_response():
     try:
@@ -82,37 +76,8 @@ def generate_response():
             user_query = request.form.get('query', '')
             company_name = request.form.get('company', 'AAPL')
 
-        # Fetch company fundamentals from Yahoo Finance
-        yahoo_data = fetch_fundamentals_from_yahoo_finance(company_name)
-        if "error" in yahoo_data:
-            return jsonify({'response': f"Error fetching data from Yahoo Finance: {yahoo_data['error']}"})
-
-        # Fetch historical trading data from Yahoo Finance
-        historical_data = fetch_historical_data_from_yahoo_finance(company_name)
-        if "error" in historical_data:
-            return jsonify({'response': f"Error fetching historical data from Yahoo Finance: {historical_data['error']}"})
-
-        # Fetch real-time trading data from Polygon.io
-        polygon_data = fetch_real_time_data_from_polygon(company_name)
-        if "error" in polygon_data:
-            return jsonify({'response': f"Error fetching data from Polygon.io: {polygon_data['error']}"})
-
-        # Combine financial data from both sources
-        combined_data = (
-            f"Below is the real-time financial data for {company_name}:\n\n"
-            f"Yahoo Finance Data:\n"
-            f"Market Cap: {yahoo_data['market_cap']}\n"
-            f"P/E Ratio: {yahoo_data['pe_ratio']}\n"
-            f"Earnings Per Share (EPS): {yahoo_data['eps']}\n\n"
-            f"Historical Data Summary:\n"
-            f"Closing prices and volume data from the last 20 years were fetched.\n\n"
-            f"Polygon.io Data:\n"
-            f"Latest Closing Price: ${polygon_data['closing_price']}\n"
-            f"Trading Volume: {polygon_data['volume']}\n\n"
-            f"User Query: {user_query}\n\n"
-            f"Based on the above real-time data, please provide a detailed summary of {company_name}'s financial health, "
-            f"recent performance, and comparison with past performance if applicable. Use only the provided data and do not reference information beyond the scope of the data given."
-        )
+        # Combine financial data from both Yahoo Finance and Polygon.io
+        combined_data = combine_financial_data(company_name)
 
         # Generate a response from GPT-4
         openai.api_key = OPENAI_API_KEY
@@ -121,17 +86,17 @@ def generate_response():
                 model="gpt-4",
                 messages=[
                     {"role": "system", "content": (
-                        "You are a financial analyst assistant that provides real-time financial analysis based solely on the given data. "
-                        "Do not reference your training knowledge or any information from before September 2021. Focus on using only the provided information to generate your response."
+                        "You are a financial analyst assistant that provides real-time financial analysis "
+                        "using up-to-date data from Yahoo Finance and Polygon.io. Analyze and summarize the data."
                     )},
-                    {"role": "user", "content": combined_data}
+                    {"role": "user", "content": f"Here is the real-time data for {company_name}:\n{combined_data}\n\n{user_query}"}
                 ],
                 max_tokens=1000,
                 temperature=0.7
             )
             return jsonify({'response': response['choices'][0]['message']['content']})
         except Exception as e:
-            return jsonify({'response': f"Error generating response from OpenAI: {str(e)}"})
+            return jsonify({'response': f"Error generating response from GPT-4: {str(e)}"})
 
     except Exception as e:
         # Catch all exceptions and provide detailed error feedback
@@ -141,3 +106,4 @@ def generate_response():
 # Running the Flask server
 if __name__ == '__main__':
     app.run(debug=True)
+
