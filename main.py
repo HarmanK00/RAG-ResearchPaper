@@ -94,7 +94,7 @@ def generate_response():
             
             # Combine historical data
             combined_data = (
-                f"Below is the historical financial data for {company_name}:\n\n"
+                f"According to Yahoo Finance, below is the historical financial data for {company_name}:\n\n"
                 f"Closing prices and volume data from the last available years were fetched.\n\n"
                 f"Please analyze {company_name}'s financial health by comparing the historical data with "
                 f"the most recent figures and discuss trends or any notable changes."
@@ -108,7 +108,10 @@ def generate_response():
             response = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are a financial analyst assistant who works with real-time and historical data."},
+                    {"role": "system", "content": (
+                        "You are a financial analyst assistant working with real-time and historical data from Yahoo Finance and Polygon.io. "
+                        "When answering, prioritize the real-time data provided but also incorporate historical data for comparative analysis where relevant."
+                    )},
                     {"role": "user", "content": combined_data}
                 ],
                 max_tokens=1000,
