@@ -24,7 +24,7 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            overflow: hidden;
+            overflow: auto; /* Allow scroll when needed */
             position: relative;
         }
 
@@ -49,7 +49,7 @@
         .container {
             max-width: 700px;
             width: 100%;
-            margin-top: 30px;
+            margin: 50px 0; /* Added margin-bottom to provide spacing for long responses */
             padding: 30px;
             background: rgba(30, 34, 61, 0.9); /* Semi-transparent dark background */
             border-radius: 15px;
@@ -140,7 +140,7 @@
             <div class="form-group">
                 <label>Enter Ticker Symbol(s):</label>
                 <div id="ticker-container">
-                    <input type="text" name="tickers" class="form-control mb-2" placeholder="e.g., AAPL, MSFT">
+                    <input type="text" name="tickers" class="form-control mb-2" placeholder="i.e. AAPL">
                 </div>
                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addTickerField()">Add Ticker</button>
                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTickerField()">Remove Ticker</button>
