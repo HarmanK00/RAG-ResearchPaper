@@ -6,133 +6,159 @@
     <title>Financial Analysis Assistant</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
     <style>
-        /* General Body Styling with Navy Blue Background */
+        /* Dark, cosmic background with gradient and stars */
         body {
-            background-color: #001f3f; /* Navy blue background */
+            background: radial-gradient(circle, rgba(15, 17, 35, 0.9), #0a0c23),
+                        radial-gradient(circle at 20% 40%, rgba(45, 47, 85, 0.6), transparent),
+                        radial-gradient(circle at 80% 60%, rgba(45, 47, 85, 0.6), transparent),
+                        radial-gradient(circle at 50% 70%, rgba(75, 77, 125, 0.3), transparent),
+                        radial-gradient(circle at 80% 20%, rgba(55, 57, 95, 0.4), transparent),
+                        radial-gradient(circle at 30% 80%, rgba(45, 47, 85, 0.5), transparent),
+                        radial-gradient(circle at 70% 40%, rgba(25, 27, 65, 0.3), transparent);
+            background-size: cover;
+            color: #ffffff;
             font-family: 'Helvetica Neue', Arial, sans-serif;
-            color: white;
-            overflow-x: hidden;
-        }
-
-        .container {
-            margin-top: 80px;
-            padding: 40px;
-            background-color: #ffffff;
-            border-radius: 15px;
-            box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.1);
-            color: #333;
-            z-index: 10;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
             position: relative;
         }
 
-        h1 {
-            color: #001f3f; /* Navy blue header text */
-            font-weight: bold;
+        /* Star-like effect using small dots for a cosmic look */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.2), transparent 20%),
+                        radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.15), transparent 15%),
+                        radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.1), transparent 10%),
+                        radial-gradient(circle at 90% 70%, rgba(255, 255, 255, 0.05), transparent 10%),
+                        radial-gradient(circle at 60% 50%, rgba(255, 255, 255, 0.15), transparent 15%);
+            opacity: 0.2;
+            z-index: 0;
         }
 
+        /* Main container with neon blue borders and subtle shadow */
+        .container {
+            max-width: 700px;
+            width: 100%;
+            margin-top: 30px;
+            padding: 30px;
+            background: rgba(30, 34, 61, 0.9); /* Semi-transparent dark background */
+            border-radius: 15px;
+            box-shadow: 0px 4px 20px rgba(0, 123, 255, 0.2);
+            border: 1px solid rgba(0, 123, 255, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            color: #ffffff;
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        /* Input fields with light grey background and blue focus outline */
         .form-control {
-            border-radius: 30px;
-            border: 1px solid #ccc;
-            padding: 15px;
+            border-radius: 10px;
+            background: #f2f4f7;
+            border: 1px solid #d1d5db;
+            color: #333;
             font-size: 16px;
-            transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
+            padding: 12px;
+            transition: border-color 0.3s;
+        }
+
+        .form-control::placeholder {
+            color: #9ca3af;
         }
 
         .form-control:focus {
-            box-shadow: 0px 0px 10px rgba(0, 123, 255, 0.8);
-            border-color: #0056b3;
+            border-color: #3b82f6; /* Blue accent border on focus */
             outline: none;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
         }
 
-        .form-group label {
-            color: #001f3f;
-            font-weight: 600;
-        }
-
+        /* Submit button with blue gradient and subtle glow */
         .btn-primary {
-            background-color: #001f3f; /* Match button color with background */
-            border-color: #001f3f;
-            padding: 10px 20px;
-            border-radius: 30px;
+            background: linear-gradient(135deg, #3068f6, #182ba6);
+            border: none;
+            border-radius: 10px;
             font-size: 18px;
-            transition: background-color 0.3s, box-shadow 0.3s, transform 0.2s ease-in-out;
+            padding: 12px;
+            color: #ffffff;
+            width: 100%;
+            transition: background-color 0.3s, box-shadow 0.3s;
+            box-shadow: 0px 4px 15px rgba(0, 123, 255, 0.3);
         }
 
         .btn-primary:hover {
-            background-color: #0056b3;
-            box-shadow: 0px 5px 15px rgba(0, 123, 255, 0.5);
-            transform: translateY(-5px); /* Floating effect */
+            background: linear-gradient(135deg, #053ab1, #2563eb);
+            box-shadow: 0px 5px 20px rgba(59, 130, 246, 0.4);
         }
 
-        .creator-note {
-            text-align: center;
-            font-size: 0.9em;
-            margin-top: 20px;
-            color: #ffffff;
-        }
-
-        .loading-message {
-            color: #0056b3; /* Dark blue loading message */
-            font-weight: bold;
-        }
-
+        /* Spinner and response styling with neon accent */
         .spinner-border {
             display: none;
-            margin: 20px auto;
-        }
-
-        .alert {
             margin-top: 20px;
+            color: #3b82f6; /* Neon blue spinner */
         }
 
-        /* Background Circles */
-        body::before, body::after {
-            content: '';
-            position: absolute;
-            border-radius: 50%;
-            z-index: 0;
-            opacity: 0.1;
+        #response {
+            background: rgba(30, 34, 61, 0.9);
+            color: #c1d0e4;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0px 4px 12px rgba(0, 123, 255, 0.2);
+            margin-top: 20px;
+            border: 1px solid rgba(0, 123, 255, 0.3);
         }
 
-        body::before {
-            top: 20%;
-            left: -10%;
-            width: 300px;
-            height: 300px;
-            background: rgba(255, 255, 255, 0.1);
+        /* Creator note styling */
+        .creator-note {
+            font-size: 0.9em;
+            color: #82caff;
+            text-align: center;
+            margin-top: 30px;
         }
-
-        body::after {
-            bottom: 10%;
-            right: -5%;
-            width: 400px;
-            height: 400px;
-            background: rgba(255, 255, 255, 0.05);
-        }
-
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 class="text-center my-4">Financial Analysis Assistant</h1>
-        <form id="queryForm" action="/generate-response" method="post">
+        <h1>Financial Analysis Assistant</h1>
+
+        <form id="queryForm">
             <div class="form-group">
-                <label for="company">Company Ticker (Optional for general queries, e.g., AAPL, MSFT)</label>
-                <input type="text" id="company" name="company" class="form-control" placeholder="Enter company ticker">
-                <small id="companyHelp" class="form-text text-muted">Enter a valid ticker or leave blank for general queries.</small>
+                <label>Enter Ticker Symbol(s):</label>
+                <div id="ticker-container">
+                    <input type="text" name="tickers" class="form-control mb-2" placeholder="e.g., AAPL, MSFT">
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addTickerField()">Add Ticker</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTickerField()">Remove Ticker</button>
             </div>
+
             <div class="form-group">
                 <label for="query">Your Question</label>
-                <textarea id="query" name="query" class="form-control" rows="3" placeholder="Enter your financial question..." required></textarea>
+                <textarea id="query" name="query" class="form-control" rows="3" placeholder="Enter your financial question here..." required></textarea>
             </div>
-            <button type="submit" id="submitButton" class="btn btn-primary btn-block">Submit</button>
+
+            <button type="submit" id="submitButton" class="btn btn-primary"><span>&#128200;</span> Submit</button>
         </form>
 
-        <div class="spinner-border text-primary" role="status" id="loadingSpinner">
+        <div class="spinner-border" role="status" id="loadingSpinner">
             <span class="sr-only">Loading...</span>
         </div>
 
-        <div id="response" class="mt-4"></div>
+        <div id="response" class="alert alert-success mt-4" style="display: none;"></div>
     </div>
 
     <div class="creator-note">
@@ -140,40 +166,54 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
     <script>
-        // Smooth scroll to response
-        function scrollToResponse() {
-            $('html, body').animate({
-                scrollTop: $("#response").offset().top
-            }, 1000);
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip();
+        });
+
+        function addTickerField() {
+            const container = document.getElementById('ticker-container');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = 'tickers';
+            input.className = 'form-control mb-2';
+            input.placeholder = 'Enter ticker';
+            container.appendChild(input);
+            $(input).tooltip();  // Activate tooltip for the new input
         }
 
-        // Submit the form via AJAX to prevent page reload and show the response in the UI
+        function removeTickerField() {
+            const container = document.getElementById('ticker-container');
+            if (container.children.length > 1) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
         $('#queryForm').on('submit', function(event) {
             event.preventDefault();
-            let company = $('#company').val();
+            let tickers = $("input[name='tickers']").map(function() { return $(this).val(); }).get();
             let query = $('#query').val();
 
-            // Disable the submit button and show spinner
             $('#submitButton').attr('disabled', true);
-            $('#loadingSpinner').show(); // Show spinner
-            $('#response').html(''); // Clear previous response
+            $('#loadingSpinner').show();
+            $('#response').hide();
 
             $.ajax({
                 url: '/generate-response',
                 type: 'POST',
                 contentType: 'application/json',
-                data: JSON.stringify({ company: company || '', query: query }),
-                success: function(response) {
-                    $('#response').html('<div class="alert alert-success">' + response.response + '</div>');
-                    scrollToResponse(); // Smooth scroll to response
+                data: JSON.stringify({ tickers: tickers, query: query }),
+                success: function(data) {
+                    $('#response').html(`<p>${data.response}</p>`).show();
                 },
-                error: function(xhr, status, error) {
-                    $('#response').html('<div class="alert alert-danger">An error occurred while generating the response. Please try again.</div>');
+                error: function() {
+                    $('#response').html('<div class="alert alert-danger">An error occurred. Please try again.</div>').show();
                 },
                 complete: function() {
                     $('#submitButton').attr('disabled', false);
-                    $('#loadingSpinner').hide(); // Hide spinner
+                    $('#loadingSpinner').hide();
                 }
             });
         });

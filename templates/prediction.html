@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stock Price Prediction</title>
+</head>
+<body>
+    <h1>Future Stock Prices Prediction</h1>
+    <ul>
+    {% for date, price in zip(dates, prices) %}
+        <li>{{ date }}: {{ price }}</li>
+    {% endfor %}
+    </ul>
+</body>
+</html>
+
