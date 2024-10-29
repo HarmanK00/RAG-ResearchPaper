@@ -36,7 +36,6 @@ def fetch_all_fundamentals_from_yahoo_finance(ticker):
     try:
         stock = yf.Ticker(ticker)
         stock_info = stock.info
-
         if not stock_info:
             return {"error": "No data found for the given ticker"}
         return stock_info
@@ -53,7 +52,6 @@ def fetch_historical_data_from_yahoo_finance(ticker):
         return data
     except Exception as e:
         return {"error": str(e)}
-
 
 # Function to fetch the most recent real-time trading data from Polygon.io
 def fetch_financial_data_from_polygon(ticker):
@@ -74,6 +72,18 @@ def fetch_financial_data_from_polygon(ticker):
             return {"error": "No data found for the given ticker on Polygon.io"}
     except Exception as e:
         return {"error": str(e)}
+
+# Function to calculate moving averages for trend analysis
+def get_moving_averages(ticker, periods=[7, 30, 90]):
+    try:
+        stock_data = yf.download(ticker, period="6mo")
+        moving_averages = {}
+        for period in periods:
+            moving_averages[f'SMA_{period}'] = stock_data['Close'].rolling(window=period).mean()
+        return moving_averages
+    except Exception as e:
+        print(f"Error while calculating moving averages: {e}")
+        return None
 
 # Function to extract specific year or quarter from user query
 def extract_specific_year_or_quarter(user_query):
@@ -97,13 +107,33 @@ def extract_historical_date(user_query):
         return (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
     else:
         return None
+# Function to fetch general financial market data from Yahoo Finance
+def fetch_general_market_data():
+    try:
+        indices = ['^GSPC', '^DJI', '^IXIC']  # S&P 500, Dow Jones, Nasdaq
+        market_data = {}
+        for index in indices:
+            stock = yf.Ticker(index)
+            info = stock.info
+            market_data[index] = {
+                "indexName": info.get("shortName", "N/A"),
+                "currentPrice": info.get("regularMarketPrice", "N/A"),
+                "dayHigh": info.get("dayHigh", "N/A"),
+                "dayLow": info.get("dayLow", "N/A"),
+                "previousClose": info.get("regularMarketPreviousClose", "N/A"),
+                "change": info.get("regularMarketChange", "N/A"),
+                "percentChange": info.get("regularMarketChangePercent", "N/A")
+            }
+        return market_data
+    except Exception as e:
+        return {"error": str(e)}
+
 
 # Function to fetch historical data for a given year, quarter, or date
 def fetch_historical_data(ticker, user_query):
     try:
         stock = yf.Ticker(ticker)
         specific_date = extract_historical_date(user_query)
-
         if specific_date:
             start_date = specific_date
             end_date = specific_date
@@ -135,7 +165,6 @@ def fetch_historical_data(ticker, user_query):
 
         if historical_data.empty:
             return {"error": "No historical data found for the given period"}
-
         return historical_data[['Close', 'Volume']]
     except Exception as e:
         return {"error": str(e)}
@@ -144,6 +173,7 @@ def fetch_historical_data(ticker, user_query):
 def combine_financial_data(ticker, user_query):
     yahoo_data = fetch_all_fundamentals_from_yahoo_finance(ticker)
     polygon_data = fetch_financial_data_from_polygon(ticker)
+    moving_averages = get_moving_averages(ticker)
 
     if "error" in yahoo_data or "error" in polygon_data:
         return f"Error in fetching data: {yahoo_data.get('error', '')}, {polygon_data.get('error', '')}"
@@ -164,6 +194,12 @@ def combine_financial_data(ticker, user_query):
     combined_data += f"Open: {polygon_data.get('open', 'N/A')}\n"
     combined_data += f"Transactions: {polygon_data.get('transactions', 'N/A')}\n"
 
+    # Moving Averages for Trend Analysis
+    if moving_averages:
+        combined_data += "\nMoving Averages for Trend Analysis:\n"
+        for key, value in moving_averages.items():
+            combined_data += f"{key}: {value.dropna().iloc[-1]:.2f}\n"
+
     # Historical Data from Yahoo Finance
     historical_data = fetch_historical_data(ticker, user_query)
     if isinstance(historical_data, pd.DataFrame):
@@ -181,12 +217,26 @@ def generate_response():
         tickers = request.json.get('tickers', [])
 
         if not tickers:
-            return jsonify({'response': "No ticker symbol provided. Please provide at least one valid ticker."})
+           # Handle general financial market queries when no ticker is provided
+            general_market_data = fetch_general_market_data()
+            if "error" in general_market_data:
+                return jsonify({'response': f"Error fetching general market data: {general_market_data['error']}"})
+            general_data_response = "General Market Data:\n"
+            for index, data in general_market_data.items():
+                general_data_response += (f"{data['indexName']}:\n"
+                                          f"Current Price: {data['currentPrice']}\n"
+                                          f"Day High: {data['dayHigh']}\n"
+                                          f"Day Low: {data['dayLow']}\n"
+                                          f"Previous Close: {data['previousClose']}\n"
+                                          f"Change: {data['change']}\n"
+                                          f"Percent Change: {data['percentChange']}\n\n")
+            return jsonify({'response': general_data_response})
 
         combined_responses = []
         for ticker in tickers:
             combined_data = combine_financial_data(ticker, user_query)
             combined_responses.append(combined_data)
+
 
         # Generate response with combined data
         openai.api_key = OPENAI_API_KEY
@@ -214,8 +264,8 @@ def generate_response():
                 {"role": "user", "content": "\n\n".join(combined_responses)},
                 {"role": "user", "content": user_query}
             ],
-            max_tokens=750,
-            temperature=0.7
+            max_tokens=875,
+            temperature=0.8
         )
 
         return jsonify({'response': response['choices'][0]['message']['content']})
