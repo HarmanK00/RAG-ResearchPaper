@@ -1,102 +1,73 @@
 import openai
 import yfinance as yf
 import requests
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, session
 import os
-from datetime import datetime, timedelta
 import pandas as pd
-import re
+import numpy as np
+import json
+from datetime import datetime, timedelta
 
-# Flask app initializations
+# Flask app initialization
 app = Flask(__name__)
+app.secret_key = os.urandom(24)  # Enables session memory
 
 @app.route('/')
 def index():
+    print("Rendering index page")
     return render_template('index.html')
 
-# API keys (using environment variables)
+# Load API Keys
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Function to format large numbers for readability
-def format_large_numbers(value):
-    try:
-        value = float(value)
-        if value >= 1_000_000_000:
-            return f"{value / 1_000_000_000:.2f} billion"
-        elif value >= 1_000_000:
-            return f"{value / 1_000_000:.2f} million"
-        else:
-            return f"{value:,.2f}"
-    except (ValueError, TypeError):
-        return value
+# Load Global Ticker Mapping from JSON File
+TICKER_MAP = {}
 
-# Function to fetch all financial data from Yahoo Finance
-def fetch_all_fundamentals_from_yahoo_finance(ticker):
+try:
+    with open("companies.json", "r") as f:
+        TICKER_MAP = json.load(f)
+        print("Ticker map successfully loaded!")
+except Exception as e:
+    print(f"Error loading ticker map: {str(e)}")
+
+# -----------------------------------------
+# **🔹 STEP 1: REAL-TIME DATA RETRIEVAL**
+# -----------------------------------------
+
+def fetch_real_time_data_polygon(ticker):
+    """Fetches real-time stock data from Polygon.io."""
+    print(f"Fetching Polygon data for {ticker}")
+    polygon_url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?apiKey={POLYGON_API_KEY}"
     try:
-        stock = yf.Ticker(ticker)
-        stock_info = stock.info
-        if not stock_info:
-            return {"error": "No data found for the given ticker"}
-        return stock_info
+        response = requests.get(polygon_url)
+        data = response.json().get("results", [{}])[0]
+        return {
+            "source": "Polygon.io",
+            "price": data.get("c", "N/A"),
+            "volume": data.get("v", "N/A"),
+            "high": data.get("h", "N/A"),
+            "low": data.get("l", "N/A"),
+            "open": data.get("o", "N/A"),
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
     except Exception as e:
         return {"error": str(e)}
 
-# Function to fetch historical trading data from Yahoo Finance
 def fetch_historical_data_from_yahoo_finance(ticker):
+    """Fetches full historical stock data from Yahoo Finance."""
     try:
         stock = yf.Ticker(ticker)
-        data = stock.history(period="max")  # Fetch max period (all available data)
+        data = stock.history(period="max")  # Fetch full available historical data
         if data.empty:
-            return {"error": "No historical data found for the given ticker"}
+            return {"error": "No historical data found"}
         return data
     except Exception as e:
         return {"error": str(e)}
 
-# Function to fetch the most recent real-time trading data from Polygon.io
-def fetch_financial_data_from_polygon(ticker):
-    polygon_url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/prev?apiKey={POLYGON_API_KEY}"
-    try:
-        polygon_response = requests.get(polygon_url)
-        if polygon_response.status_code == 200 and polygon_response.json().get("results"):
-            data = polygon_response.json()["results"][0]  # Use the first result from 'results'
-            return {
-                "price": data.get("c", "N/A"),  # Closing price
-                "volume": data.get("v", "N/A"),  # Volume
-                "high": data.get("h", "N/A"),    # High price
-                "low": data.get("l", "N/A"),     # Low price
-                "open": data.get("o", "N/A"),    # Opening price
-                "transactions": data.get("n", "N/A")  # Number of transactions
-            }
-        else:
-            return {"error": "No data found for the given ticker on Polygon.io"}
-    except Exception as e:
-        return {"error": str(e)}
-
-# Function to calculate moving averages for trend analysis
-def get_moving_averages(ticker, periods=[7, 30, 90]):
-    try:
-        stock_data = yf.download(ticker, period="6mo")
-        moving_averages = {}
-        for period in periods:
-            moving_averages[f'SMA_{period}'] = stock_data['Close'].rolling(window=period).mean()
-        return moving_averages
-    except Exception as e:
-        print(f"Error while calculating moving averages: {e}")
-        return None
-
-# Function to extract specific year or quarter from user query
-def extract_specific_year_or_quarter(user_query):
-    year_match = re.search(r"\b(\d{4})\b", user_query)
-    if year_match:
-        return year_match.group(0)
-    quarter_match = re.search(r"(Q[1-4])\s(\d{4})", user_query)
-    if quarter_match:
-        return quarter_match.group(0)
-    return None
-
-# Function to extract specific date or keywords for historical data from user query
+# **🔹 Extract specific date or keywords for historical data from user query**
 def extract_historical_date(user_query):
+    """Extracts specific historical timeframes from user query."""
     if "one year ago" in user_query.lower():
         return (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
     elif "six months ago" in user_query.lower():
@@ -107,175 +78,293 @@ def extract_historical_date(user_query):
         return (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
     else:
         return None
-# Function to fetch general financial market data from Yahoo Finance
-def fetch_general_market_data():
-    try:
-        indices = ['^GSPC', '^DJI', '^IXIC']  # S&P 500, Dow Jones, Nasdaq
-        market_data = {}
-        for index in indices:
-            stock = yf.Ticker(index)
-            info = stock.info
-            market_data[index] = {
-                "indexName": info.get("shortName", "N/A"),
-                "currentPrice": info.get("regularMarketPrice", "N/A"),
-                "dayHigh": info.get("dayHigh", "N/A"),
-                "dayLow": info.get("dayLow", "N/A"),
-                "previousClose": info.get("regularMarketPreviousClose", "N/A"),
-                "change": info.get("regularMarketChange", "N/A"),
-                "percentChange": info.get("regularMarketChangePercent", "N/A")
-            }
-        return market_data
-    except Exception as e:
-        return {"error": str(e)}
 
-
-# Function to fetch historical data for a given year, quarter, or date
-def fetch_historical_data(ticker, user_query):
+def fetch_real_time_data_yahoo(ticker):
+    """Fetches real-time stock data from Yahoo Finance."""
+    print(f"Fetching Yahoo Finance data for {ticker}")
     try:
         stock = yf.Ticker(ticker)
-        specific_date = extract_historical_date(user_query)
-        if specific_date:
-            start_date = specific_date
-            end_date = specific_date
-        else:
-            time_period = extract_specific_year_or_quarter(user_query)
-            if re.match(r"\d{4}", time_period):
-                start_date = f"{time_period}-01-01"
-                end_date = f"{time_period}-12-31"
-            elif re.match(r"(Q[1-4])\s(\d{4})", time_period):
-                quarter_match = re.match(r"(Q[1-4])\s(\d{4})", time_period)
-                quarter, year = quarter_match.groups()
-                year = int(year)
-                if quarter == "Q1":
-                    start_date = f"{year}-01-01"
-                    end_date = f"{year}-03-31"
-                elif quarter == "Q2":
-                    start_date = f"{year}-04-01"
-                    end_date = f"{year}-06-30"
-                elif quarter == "Q3":
-                    start_date = f"{year}-07-01"
-                    end_date = f"{year}-09-30"
-                elif quarter == "Q4":
-                    start_date = f"{year}-10-01"
-                    end_date = f"{year}-12-31"
-            else:
-                return {"error": "No valid date period found in the query"}
+        data = stock.history(period="1d")
+        latest_data = data.iloc[-1] if not data.empty else None
 
-        historical_data = stock.history(start=start_date, end=end_date)
+        if latest_data is None:
+            return {"error": "No real-time data found"}
 
-        if historical_data.empty:
-            return {"error": "No historical data found for the given period"}
-        return historical_data[['Close', 'Volume']]
+        return {
+            "source": "Yahoo Finance",
+            "price": latest_data["Close"],
+            "volume": latest_data["Volume"],
+            "high": latest_data["High"],
+            "low": latest_data["Low"],
+            "open": latest_data["Open"],
+            "timestamp": latest_data.name.strftime('%Y-%m-%d %H:%M:%S')
+        }
     except Exception as e:
         return {"error": str(e)}
 
-# Combine Yahoo Finance and Polygon.io data, with support for historical data
-def combine_financial_data(ticker, user_query):
-    yahoo_data = fetch_all_fundamentals_from_yahoo_finance(ticker)
-    polygon_data = fetch_financial_data_from_polygon(ticker)
-    moving_averages = get_moving_averages(ticker)
+# **🔹 Facilitator: Extract Tickers from Query**
+def extract_tickers(query):
+    """Extracts stock tickers from the user query using a predefined dictionary."""
+    tickers = []
+    print("Extracting tickers:", query)
 
-    if "error" in yahoo_data or "error" in polygon_data:
-        return f"Error in fetching data: {yahoo_data.get('error', '')}, {polygon_data.get('error', '')}"
+    for company, ticker in TICKER_MAP.items():
+        if company.lower() in query.lower():
+            tickers.append(ticker)
 
-    combined_data = f"Below is the real-time and historical financial data for {ticker}:\n\n"
+    print("Extracted tickers:", tickers)
+    return tickers
 
-    # Yahoo Finance Data (historical and fundamentals)
-    combined_data += "Yahoo Finance Data:\n"
-    for key, value in yahoo_data.items():
-        combined_data += f"{key}: {format_large_numbers(value)}\n"
+# **🔹 Facilitator: Collect & Validate Real-Time Data**
+def collect_real_time_data(query):
+    """Fetches real-time data for all detected stock tickers in a query."""
+    tickers = extract_tickers(query)
+    if not tickers:
+        return {"error": "No valid stock ticker found in query."}
 
-    # Polygon.io Data (real-time)
-    combined_data += "\nPolygon.io Real-Time Data:\n"
-    combined_data += f"Price: {polygon_data.get('price', 'N/A')}\n"
-    combined_data += f"Volume: {polygon_data.get('volume', 'N/A')}\n"
-    combined_data += f"High: {polygon_data.get('high', 'N/A')}\n"
-    combined_data += f"Low: {polygon_data.get('low', 'N/A')}\n"
-    combined_data += f"Open: {polygon_data.get('open', 'N/A')}\n"
-    combined_data += f"Transactions: {polygon_data.get('transactions', 'N/A')}\n"
+    real_time_data = {}
+    for ticker in tickers:
+        yahoo_data = fetch_real_time_data_yahoo(ticker)
+        polygon_data = fetch_real_time_data_polygon(ticker)
 
-    # Moving Averages for Trend Analysis
-    if moving_averages:
-        combined_data += "\nMoving Averages for Trend Analysis:\n"
-        for key, value in moving_averages.items():
-            combined_data += f"{key}: {value.dropna().iloc[-1]:.2f}\n"
+        real_time_data[ticker] = {
+            "Yahoo": yahoo_data if "error" not in yahoo_data else None,
+            "Polygon": polygon_data if "error" not in polygon_data else None
+        }
 
-    # Historical Data from Yahoo Finance
-    historical_data = fetch_historical_data(ticker, user_query)
-    if isinstance(historical_data, pd.DataFrame):
-        combined_data += f"\nHistorical Data from Yahoo Finance based on your query:\n"
-        combined_data += historical_data.to_string()
-    else:
-        combined_data += f"\nNo historical data available for the specified period.\n"
+    print("Collected real-time data:", real_time_data)
+    return real_time_data if real_time_data else {"error": "No real-time data available."}
 
-    return combined_data
+# -----------------------------------------
+# **🔹 STEP 2: ADVANCED ANALYTICS (AAG)**
+# -----------------------------------------
+def calculate_moving_averages(data):
+    """Calculates moving averages."""
+    return {f"SMA_{period}": data["Close"].rolling(window=period).mean().dropna().iloc[-1]
+            for period in [7, 30, 90]}
 
+def calculate_rsi(data, period=14):
+    """Calculates RSI."""
+    delta = data["Close"].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs)).iloc[-1]
+
+
+
+def monte_carlo_simulation(data):
+    """Runs Monte Carlo simulations for stock price forecasting."""
+    returns = data['Close'].pct_change().dropna()
+    mean = returns.mean()
+    std_dev = returns.std()
+    num_simulations = 1000
+    num_days = 30
+    simulations = []
+    last_price = data['Close'].iloc[-1]
+
+    for _ in range(num_simulations):
+        price_series = [last_price]
+        for _ in range(num_days):
+            price_series.append(price_series[-1] * (1 + np.random.normal(mean, std_dev)))
+        simulations.append(price_series[-1])
+
+    return {
+        "5th Percentile": np.percentile(simulations, 5),
+        "50th Percentile (Median)": np.percentile(simulations, 50),
+        "95th Percentile": np.percentile(simulations, 95)
+    }
+
+def calculate_beta(ticker):
+    """Calculates Beta Coefficient against S&P 500 (^GSPC)."""
+    try:
+        stock = yf.Ticker(ticker)
+        sp500 = yf.Ticker("^GSPC")
+        stock_data = stock.history(period="6mo")['Close']
+        sp500_data = sp500.history(period="6mo")['Close']
+
+        if stock_data.empty or sp500_data.empty:
+            return "Insufficient data for Beta calculation"
+
+        stock_returns = stock_data.pct_change().dropna()
+        sp500_returns = sp500_data.pct_change().dropna()
+        beta = np.cov(stock_returns, sp500_returns)[0, 1] / np.var(sp500_returns)
+        return round(beta, 3)
+    except Exception as e:
+        return {"error": f"Failed to calculate Beta: {str(e)}"}
+
+def calculate_bollinger_bands(data, window=20, num_std=2):
+    """Calculates Bollinger Bands."""
+    rolling_mean = data["Close"].rolling(window=window).mean()
+    rolling_std = data["Close"].rolling(window=window).std()
+    upper_band = rolling_mean + (num_std * rolling_std)
+    lower_band = rolling_mean - (num_std * rolling_std)
+
+    return {
+        "Upper Band": upper_band.iloc[-1],
+        "Middle Band (SMA)": rolling_mean.iloc[-1],
+        "Lower Band": lower_band.iloc[-1]
+    }
+
+# **🔹 Facilitator: Collect & Validate Advanced Analytics**
+def collect_advanced_analytics(query):
+    """Fetches advanced analytics for all detected stock tickers in a query."""
+    tickers = extract_tickers(query)
+    if not tickers:
+        return {"error": "No valid stock ticker found in query."}
+
+    analysis_data = {}
+
+    for ticker in tickers:
+        stock = yf.Ticker(ticker)
+        historical_data = stock.history(period="6mo")
+
+        if historical_data.empty:
+            analysis_data[ticker] = {
+                "error": "No historical data available for analytics.",
+                "Beta Coefficient": "N/A",
+                "Bollinger Bands": {"Upper Band": "N/A", "Lower Band": "N/A"}
+            }
+            continue  # Ensures missing data doesn’t break analysis
+
+        try:
+            analysis_data[ticker] = {
+                "Moving Averages": calculate_moving_averages(historical_data),
+                "RSI": calculate_rsi(historical_data),
+                "Monte Carlo Simulation": monte_carlo_simulation(historical_data),
+                "Beta Coefficient": calculate_beta(ticker),
+                "Bollinger Bands": calculate_bollinger_bands(historical_data)
+            }
+        except Exception as e:
+            analysis_data[ticker] = {
+                "error": f"Analytics error: {str(e)}",
+                "Beta Coefficient": "N/A",
+                "Bollinger Bands": {"Upper Band": "N/A", "Lower Band": "N/A"}
+            }
+
+    print("Collected advanced analytics data:", analysis_data)
+    return analysis_data
+
+
+def handle_general_financial_query(user_query):
+    """Handles general financial queries that do not require stock data."""
+    openai.api_key = OPENAI_API_KEY
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a world-class financial analyst specializing in investment strategies, macroeconomic trends, risk management, and stock market insights. YOU MUST CREATE AN ACTIONABLE DETAILED PLAN."},
+                {"role": "user", "content": user_query}
+            ],
+            max_tokens=750,
+            temperature=0.9
+        )
+        return response['choices'][0]['message']['content']
+    except Exception as e:
+        return f"An error occurred while handling the general query: {str(e)}"
+
+# -----------------------------------------
+# **🔹 FLASK API ROUTE**
+# -----------------------------------------
 @app.route('/generate-response', methods=['POST'])
 def generate_response():
     try:
         user_query = request.json.get('query', '')
-        tickers = request.json.get('tickers', [])
+        tickers = extract_tickers(user_query)  # Extract potential stock tickers
 
-        if not tickers:
-           # Handle general financial market queries when no ticker is provided
-            general_market_data = fetch_general_market_data()
-            if "error" in general_market_data:
-                return jsonify({'response': f"Error fetching general market data: {general_market_data['error']}"})
-            general_data_response = "General Market Data:\n"
-            for index, data in general_market_data.items():
-                general_data_response += (f"{data['indexName']}:\n"
-                                          f"Current Price: {data['currentPrice']}\n"
-                                          f"Day High: {data['dayHigh']}\n"
-                                          f"Day Low: {data['dayLow']}\n"
-                                          f"Previous Close: {data['previousClose']}\n"
-                                          f"Change: {data['change']}\n"
-                                          f"Percent Change: {data['percentChange']}\n\n")
-            return jsonify({'response': general_data_response})
+        if tickers:
+            # ✅ If tickers are found, process real-time stock data analysis
+            real_time_data = collect_real_time_data(user_query)
+            analysis_data = collect_advanced_analytics(user_query)
+            ai_response = generate_financial_analysis(real_time_data, analysis_data, user_query)
+        else:
+            # ✅ If no tickers are found, treat it as a general financial question
+            ai_response = handle_general_financial_query(user_query)
 
-        combined_responses = []
-        for ticker in tickers:
-            combined_data = combine_financial_data(ticker, user_query)
-            combined_responses.append(combined_data)
+        return jsonify({'response': ai_response})
+    
+    except Exception as e:
+        return jsonify({'response': f"An error occurred: {str(e)}"})
 
+# -----------------------------------------
+# **🔹 SYSTEM MESSAGE for GPT-4**
+# -----------------------------------------
 
-        # Generate response with combined data
-        openai.api_key = OPENAI_API_KEY
+SYSTEM_MESSAGE = """
+You are a world-class AI finance analyst specializing in **real-time financial analysis, market trend forecasting, and risk evaluation**.
+Your goal is to provide accurate, **data-driven** financial insights using **real-time stock data** and **advanced analytics**.
+
+📊 **Key Responsibilities**:
+- **Real-Time Data Retrieval**: Always use the most up-to-date stock prices, market trends, and volume metrics.
+- **Advanced Analytics**: Utilize SMA, RSI, Bollinger Bands, Monte Carlo Simulations, and Beta coefficients.
+- **Market Trend Forecasting**: Identify **patterns, volatility, and risk factors** based on real-time & historical data.
+- **Investment Analysis**: Offer insightful **stock recommendations & risk assessments** based on the given data.
+
+❌ **NEVER say "I don't have access to real-time data."**  
+✅ **Always analyze data from Yahoo Finance & Polygon.io to provide insights.**  
+"""
+
+def generate_financial_analysis(real_time_data, analysis_data, user_query):
+    """Generates AI response using GPT-4 for multi-company analysis."""
+    openai.api_key = OPENAI_API_KEY
+
+    try:
+        real_time_summary = ""
+        analysis_summary = ""
+
+        for company, data in real_time_data.items():
+            if isinstance(data, dict) and "error" not in data:
+                real_time_summary += (
+                    f"\n📊 **{company} - Real-Time Stock Data:**\n"
+                    f"🔹 **Yahoo Finance**: ${data.get('Yahoo', {}).get('price', 'N/A')} "
+                    f"(as of {data.get('Yahoo', {}).get('timestamp', 'N/A')})\n"
+                    f"🔹 **Polygon.io**: ${data.get('Polygon', {}).get('price', 'N/A')} "
+                    f"(as of {data.get('Polygon', {}).get('timestamp', 'N/A')})\n"
+                )
+
+        for company, data in analysis_data.items():
+            if isinstance(data, dict) and "error" not in data:
+                analysis_summary += (
+                    f"\n📈 **{company} - Advanced Analytics:**\n"
+                    f"🔹 7-day SMA: ${data.get('Moving Averages', {}).get('SMA_7', 'N/A')}\n"
+                    f"🔹 30-day SMA: ${data.get('Moving Averages', {}).get('SMA_30', 'N/A')}\n"
+                    f"🔹 90-day SMA: ${data.get('Moving Averages', {}).get('SMA_90', 'N/A')}\n"
+                    f"🔹 RSI: {data.get('RSI', 'N/A')}\n"
+                    f"🔹 Beta Coefficient: {data.get('Beta Coefficient', 'N/A')}\n"
+                    f"🔹 Bollinger Bands: Upper ${data.get('Bollinger Bands', {}).get('Upper Band', 'N/A')}, "
+                    f"Lower ${data.get('Bollinger Bands', {}).get('Lower Band', 'N/A')}\n"
+                    f"🔹 Monte Carlo Prediction (Median): ${data.get('Monte Carlo Simulation', {}).get('50th Percentile (Median)', 'N/A')}\n"
+                )
+
+        if not real_time_summary and not analysis_summary:
+            return "No valid financial data was retrieved. Please check your ticker symbols or try again later."
+
+        prompt = (
+            "You are a world-class AI finance analyst. Use the following real-time stock data and analytics "
+            "to provide a financial assessment. Do NOT say you don't have real-time data. "
+            "Instead, base your response on the given data. \n\n"
+            f"{real_time_summary}\n{analysis_summary}\n\n"
+            f"User Query: {user_query}\n"
+            "🔹 Provide a professional financial assessment, including trends and risk factors."
+        )
+
+        # ✅ Ensure GPT-4 is correctly prompted with structured real-time data
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        f"You are a financial analyst assistant designed to provide expert-level analysis using real-time and historical financial data from Yahoo Finance and Polygon.io. "
-                        f"Your responses must be precise, transparent, and well-supported by quantitative data, tailored to meet the standards of Wall Street professionals. "
-                        f"Today's date is {datetime.now().strftime('%B %d, %Y')}\n\n"
-                        f"Your capabilities:\n"
-                        f"1. **Data Sources**:\n"
-                        f"   - Use **Yahoo Finance** for both **real-time** and **historical data** such as financial statements, revenue, profit margins, balance sheets, and historical stock performance.\n"
-                        f"   - Use **Polygon.io** for **real-time data** including metrics like current price, volume, VWAP, high, low, opening price, and transaction count.\n"
-                        f"2. **Data Referencing**:\n"
-                        f"   - Always describe the data as **'real-time'** or **'recently retrieved'** to emphasize the timeliness of the information.\n"
-                        f"   - If historical data is being referenced, clearly state the time period.\n"
-                        f"3. **Response Tone and Quality**:\n"
-                        f"   - Provide analysis in a **professional and formal tone**, suitable for financial professionals or academic reviewers.\n"
-                        f"   - **Never deviate** from the factual data retrieved. Keep responses less than 9 sentences."
-                    )
-                },
-                {"role": "user", "content": "\n\n".join(combined_responses)},
-                {"role": "user", "content": user_query}
+                {"role": "system", "content": SYSTEM_MESSAGE},
+                {"role": "user", "content": prompt}
             ],
-            max_tokens=875,
-            temperature=0.8
+            max_tokens=1000,
+            temperature=0.7
         )
 
-        return jsonify({'response': response['choices'][0]['message']['content']})
+        return response['choices'][0]['message']['content']
 
     except Exception as e:
-        return jsonify({'response': f"An error occurred while generating the response: {str(e)}"})
+        return f"An error occurred: {str(e)}"
 
-# Running the Flask server
 if __name__ == '__main__':
+    print("Starting Flask app")
     app.run(debug=True)
-
-
-# Force update
