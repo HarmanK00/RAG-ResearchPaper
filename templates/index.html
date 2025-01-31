@@ -1,222 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Financial Analysis Assistant</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
-    <style>
-        /* Dark, cosmic background with gradient and stars */
-        body {
-            background: radial-gradient(circle, rgba(15, 17, 35, 0.9), #0a0c23),
-                        radial-gradient(circle at 20% 40%, rgba(45, 47, 85, 0.6), transparent),
-                        radial-gradient(circle at 80% 60%, rgba(45, 47, 85, 0.6), transparent),
-                        radial-gradient(circle at 50% 70%, rgba(75, 77, 125, 0.3), transparent),
-                        radial-gradient(circle at 80% 20%, rgba(55, 57, 95, 0.4), transparent),
-                        radial-gradient(circle at 30% 80%, rgba(45, 47, 85, 0.5), transparent),
-                        radial-gradient(circle at 70% 40%, rgba(25, 27, 65, 0.3), transparent);
-            background-size: cover;
-            color: #ffffff;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            overflow: auto; /* Allow scroll when needed */
-            position: relative;
-        }
-
-        /* Star-like effect using small dots for a cosmic look */
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.2), transparent 20%),
-                        radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.15), transparent 15%),
-                        radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.1), transparent 10%),
-                        radial-gradient(circle at 90% 70%, rgba(255, 255, 255, 0.05), transparent 10%),
-                        radial-gradient(circle at 60% 50%, rgba(255, 255, 255, 0.15), transparent 15%);
-            opacity: 0.2;
-            z-index: 0;
-        }
-
-        /* Main container with neon blue borders and subtle shadow */
-        .container {
-            max-width: 700px;
-            width: 100%;
-            margin: 50px 0; /* Added margin-bottom to provide spacing for long responses */
-            padding: 30px;
-            background: rgba(30, 34, 61, 0.9); /* Semi-transparent dark background */
-            border-radius: 15px;
-            box-shadow: 0px 4px 20px rgba(0, 123, 255, 0.2);
-            border: 1px solid rgba(0, 123, 255, 0.3);
-            position: relative;
-            z-index: 1;
-        }
-
-        h1 {
-            color: #ffffff;
-            text-align: center;
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-
-        /* Input fields with light grey background and blue focus outline */
-        .form-control {
-            border-radius: 10px;
-            background: #f2f4f7;
-            border: 1px solid #d1d5db;
-            color: #333;
-            font-size: 16px;
-            padding: 12px;
-            transition: border-color 0.3s;
-        }
-
-        .form-control::placeholder {
-            color: #9ca3af;
-        }
-
-        .form-control:focus {
-            border-color: #3b82f6; /* Blue accent border on focus */
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
-        }
-
-        /* Submit button with blue gradient and subtle glow */
-        .btn-primary {
-            background: linear-gradient(135deg, #3068f6, #182ba6);
-            border: none;
-            border-radius: 10px;
-            font-size: 18px;
-            padding: 12px;
-            color: #ffffff;
-            width: 100%;
-            transition: background-color 0.3s, box-shadow 0.3s;
-            box-shadow: 0px 4px 15px rgba(0, 123, 255, 0.3);
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #053ab1, #2563eb);
-            box-shadow: 0px 5px 20px rgba(59, 130, 246, 0.4);
-        }
-
-        /* Spinner and response styling with neon accent */
-        .spinner-border {
-            display: none;
-            margin-top: 20px;
-            color: #3b82f6; /* Neon blue spinner */
-        }
-
-        #response {
-            background: rgba(30, 34, 61, 0.9);
-            color: #c1d0e4;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0px 4px 12px rgba(0, 123, 255, 0.2);
-            margin-top: 20px;
-            border: 1px solid rgba(0, 123, 255, 0.3);
-        }
-
-        /* Creator note styling */
-        .creator-note {
-            font-size: 0.9em;
-            color: #82caff;
-            text-align: center;
-            margin-top: 30px;
-        }
-    </style>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Financial Analysis Assistant</title>
+   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+   <style>
+       /* Modern professional theme */
+       body {
+           background: linear-gradient(135deg, #004d40, #E0F7FA);
+           color: #333333;
+           font-family: 'Arial', sans-serif;
+           display: flex;
+           flex-direction: column;
+           align-items: center;
+           justify-content: center;
+           min-height: 100vh;
+           padding: 20px;
+           margin: 0;
+       }
+       .container {
+           max-width: 700px;
+           width: 100%;
+           padding: 30px;
+           background: #FFFFFF;
+           border-radius: 15px;
+           box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.1);
+       }
+       h1 {
+           text-align: center;
+           font-size: 32px;
+           font-weight: bold;
+           margin-bottom: 20px;
+           color: #00796B;
+       }
+       .form-control {
+           border-radius: 10px;
+           background: #F1F8E9;
+           font-size: 16px;
+           padding: 12px;
+           color: #333333;
+           border: 1px solid #B2DFDB;
+       }
+       .form-control::placeholder {
+           color: #757575;
+       }
+       .btn-primary {
+           background: linear-gradient(135deg, #00796B, #004D40);
+           border-radius: 10px;
+           font-size: 18px;
+           width: 100%;
+           padding: 12px;
+           color: #fff;
+           border: none;
+       }
+       .btn-primary:hover {
+           background: linear-gradient(135deg, #004D40, #00796B);
+       }
+       .spinner-border {
+           display: none;
+           margin-top: 20px;
+       }
+       #response {
+           background: #E0F2F1;
+           color: #004D40;
+           border-radius: 10px;
+           padding: 20px;
+           margin-top: 20px;
+           display: none;
+       }
+       .creator-note {
+           font-size: 0.9em;
+           color: #004D40;
+           text-align: center;
+           margin-top: 30px;
+       }
+   </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Financial Analysis Assistant</h1>
+   <div class="container">
+       <h1>Financial Analysis Advisor</h1>
 
-        <form id="queryForm">
-            <div class="form-group">
-                <label>Enter Ticker Symbol(s):</label>
-                <div id="ticker-container">
-                    <input type="text" name="tickers" class="form-control mb-2" placeholder="i.e. AAPL">
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addTickerField()">Add Ticker</button>
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTickerField()">Remove Ticker</button>
-            </div>
+       <form id="queryForm">
+           <div class="form-group">
+               <label for="query">Your Financial Question</label>
+               <textarea id="query" name="query" class="form-control" rows="3" placeholder="Enter Your Financial Question Here..." required></textarea>
+           </div>
 
-            <div class="form-group">
-                <label for="query">Your Question</label>
-                <textarea id="query" name="query" class="form-control" rows="3" placeholder="Enter your financial question here..." required></textarea>
-            </div>
+           <button type="submit" id="submitButton" class="btn btn-primary">Submit</button>
+       </form>
 
-            <button type="submit" id="submitButton" class="btn btn-primary"><span>&#128200;</span> Submit</button>
-        </form>
+       <div class="spinner-border" role="status" id="loadingSpinner">
+           <span class="sr-only">Loading...</span>
+       </div>
 
-        <div class="spinner-border" role="status" id="loadingSpinner">
-            <span class="sr-only">Loading...</span>
-        </div>
+       <div id="response"></div>
+   </div>
 
-        <div id="response" class="alert alert-success mt-4" style="display: none;"></div>
-    </div>
+   <div class="creator-note">
+       Created by Harman Kaur <br>Real-Time Data from Yahoo Finance and Polygon.io
+   </div>
 
-    <div class="creator-note">
-        Created by Harman Kaur <br>Real-time data from Yahoo Finance and Polygon.io
-    </div>
+   <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+   <script>
+       $('#queryForm').on('submit', function(event) {
+           event.preventDefault();
+           let query = $('#query').val();
 
-    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
-    <script>
-        $(function () {
-            $('[data-toggle="tooltip"]').tooltip();
-        });
+           $('#submitButton').attr('disabled', true);
+           $('#loadingSpinner').show();
+           $('#response').hide();
 
-        function addTickerField() {
-            const container = document.getElementById('ticker-container');
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.name = 'tickers';
-            input.className = 'form-control mb-2';
-            input.placeholder = 'Enter ticker';
-            container.appendChild(input);
-            $(input).tooltip();  // Activate tooltip for the new input
-        }
-
-        function removeTickerField() {
-            const container = document.getElementById('ticker-container');
-            if (container.children.length > 1) {
-                container.removeChild(container.lastChild);
-            }
-        }
-
-        $('#queryForm').on('submit', function(event) {
-            event.preventDefault();
-            let tickers = $("input[name='tickers']").map(function() { return $(this).val(); }).get();
-            let query = $('#query').val();
-
-            $('#submitButton').attr('disabled', true);
-            $('#loadingSpinner').show();
-            $('#response').hide();
-
-            $.ajax({
-                url: '/generate-response',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ tickers: tickers, query: query }),
-                success: function(data) {
-                    $('#response').html(`<p>${data.response}</p>`).show();
-                },
-                error: function() {
-                    $('#response').html('<div class="alert alert-danger">An error occurred. Please try again.</div>').show();
-                },
-                complete: function() {
-                    $('#submitButton').attr('disabled', false);
-                    $('#loadingSpinner').hide();
-                }
-            });
-        });
-    </script>
+           $.ajax({
+               url: '/generate-response',
+               type: 'POST',
+               contentType: 'application/json',
+               data: JSON.stringify({ query: query }),
+               success: function(data) {
+                   $('#response').html(`<p>${data.response}</p>`).show();
+               },
+               error: function() {
+                   $('#response').html('<div class="alert alert-danger">An error occurred. Please try again.</div>').show();
+               },
+               complete: function() {
+                   $('#submitButton').attr('disabled', false);
+                   $('#loadingSpinner').hide();
+               }
+           });
+       });
+   </script>
 </body>
 </html>
